@@ -1,3 +1,4 @@
+
 /* ============================================
    GROW GENIX - Form Handler
    Contact form with validation & submission
@@ -13,7 +14,11 @@ const FORM_CONFIG = {
 /* ==================== Modal Functions ==================== */
 let phoneInputInstance = null;
 
-function openModal() {
+/**
+ * Opens the booking modal and optionally pre-fills the service/interest
+ * @param {string} sourceContext - Optional: Where did the user click? (e.g., 'Performance Growth', 'Hero Section')
+ */
+function openModal(sourceContext = '') {
     const modal = document.getElementById('booking-modal');
     const modalContent = document.getElementById('modal-content');
     
@@ -34,8 +39,55 @@ function openModal() {
     // Initialize phone input if not already done
     initPhoneInput();
     
+    // Handle Source Context (Pre-fill dropdown or set hidden field)
+    if (sourceContext) {
+        setFormSource(sourceContext);
+    }
+    
     // Prevent body scroll
     document.body.style.overflow = 'hidden';
+}
+
+function setFormSource(source) {
+    // 1. Try to find a select dropdown named 'service'
+    const serviceSelect = document.querySelector('#modal-form select[name="service"]');
+    
+    // Normalize source string for comparison (lowercase, dashes)
+    const normalizedSource = source.toLowerCase().replace(/\s+/g, '-');
+
+    // Create a hidden input for "Specific Source" if it doesn't exist
+    let sourceInput = document.getElementById('hidden-source-input');
+    if (!sourceInput) {
+        sourceInput = document.createElement('input');
+        sourceInput.type = 'hidden';
+        sourceInput.id = 'hidden-source-input';
+        sourceInput.name = 'Interest_Source'; // This will show up in email
+        const form = document.getElementById('contact-form');
+        if (form) form.appendChild(sourceInput);
+    }
+    sourceInput.value = source;
+
+    // 2. If we have a dropdown, try to select the matching option
+    if (serviceSelect) {
+        // Loop options to find a match (partial match allowed)
+        let found = false;
+        Array.from(serviceSelect.options).forEach(option => {
+            if (option.value === normalizedSource || option.text.toLowerCase().includes(source.toLowerCase())) {
+                serviceSelect.value = option.value;
+                found = true;
+            }
+        });
+        
+        // If exact match not found but we have a value, try mapping common terms
+        if (!found) {
+            if (source.includes('Chatbot')) serviceSelect.value = 'smart-chatbot';
+            else if (source.includes('Automation')) serviceSelect.value = 'workflow-automation';
+            else if (source.includes('Content')) serviceSelect.value = 'content-creation';
+            else if (source.includes('Ads')) serviceSelect.value = 'meta-ads';
+            else if (source.includes('SEO')) serviceSelect.value = 'seo';
+            else if (source.includes('Funnel')) serviceSelect.value = 'sales-funnel';
+        }
+    }
 }
 
 function closeModal() {
@@ -220,12 +272,16 @@ async function handleFormSubmit(event) {
         // Prepare form data
         const formData = new FormData(form);
         
-        // Get full phone number with country code
+        // 1. Get full phone number
         if (phoneInputInstance) {
             formData.set('phone', phoneInputInstance.getNumber());
         }
 
-        // Convert to JSON
+        // 2. Add Automatic Tracking Data (Crucial for Client)
+        formData.append('Page_URL', window.location.href);
+        formData.append('Page_Title', document.title);
+        
+        // 3. Convert to JSON
         const data = Object.fromEntries(formData);
         
         // Send to Web3Forms
@@ -433,6 +489,10 @@ async function handleInlineFormSubmit(event) {
         if (inlinePhoneInputInstance) {
             formData.set('phone', inlinePhoneInputInstance.getNumber());
         }
+
+        // Add Page URL & Title Tracking for Inline Forms too
+        formData.append('Page_URL', window.location.href);
+        formData.append('Page_Title', document.title);
         
         const data = Object.fromEntries(formData);
 
